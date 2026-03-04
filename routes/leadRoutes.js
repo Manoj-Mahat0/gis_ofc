@@ -1,5 +1,7 @@
 const express = require('express');
 const router = express.Router();
+const multer = require('multer');
+const upload = multer({ dest: 'uploads/' });
 const {
   getLeads,
   getLead,
@@ -24,7 +26,7 @@ router.route('/:id')
   .delete(authorize('admin', 'manager'), deleteLead);
 
 router.put('/:id/assign', authorize('admin', 'manager'), assignLead);
-router.post('/import', authorize('admin', 'manager'), importLeads);
+router.post('/import', authorize('admin', 'manager'), upload.single('file'), importLeads);
 router.get('/export', authorize('admin', 'manager'), exportLeads);
 
 module.exports = router;

@@ -1,20 +1,20 @@
 const express = require('express');
 const router = express.Router();
-const { protect } = require('../middleware/auth');
+const {
+  checkIn,
+  checkOut,
+  getMyAttendance,
+  getAllAttendance
+} = require('../controllers/attendanceController');
+const { protect, authorize } = require('../middleware/auth');
 
-// Placeholder for attendance routes
 router.use(protect);
 
-router.get('/', (req, res) => {
-  res.json({ success: true, data: [] });
-});
+router.get('/', getMyAttendance);
+router.post('/checkin', checkIn);
+router.post('/checkout', checkOut);
 
-router.post('/checkin', (req, res) => {
-  res.json({ success: true, message: 'Checked in' });
-});
-
-router.post('/checkout', (req, res) => {
-  res.json({ success: true, message: 'Checked out' });
-});
+// Admin routes
+router.get('/all', authorize('admin', 'manager'), getAllAttendance);
 
 module.exports = router;

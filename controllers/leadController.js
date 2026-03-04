@@ -209,12 +209,74 @@ exports.assignLead = async (req, res) => {
 // @access  Private/Admin/Manager
 exports.importLeads = async (req, res) => {
   try {
-    // Placeholder for import functionality
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please upload a file'
+      });
+    }
+
+    const filePath = req.file.path;
+    const fileName = req.file.originalname;
+    let leads = [];
+
+    if (fileName.endsWith('.csv')) {
+      // Parse CSV
+      const results = [];
+      await new Promise((resolve, reject) => {
+        fs.createReadStream(filePath)
+          .pipe(csv())
+          .on('data', (data) => results.push(data))
+          .on('end', () => resolve())
+          .on('error', (err) => reject(err));
+      });
+      leads = results;
+    } else if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
+      // Parse Excel
+      const workbook = xlsx.readFile(filePath);
+      const sheetName = workbook.SheetNames[0];
+      const sheet = workbook.Sheets[sheetName];
+      leads = xlsx.utils.sheet_to_json(sheet);
+    } else {
+      fs.unlinkSync(filePath);
+      return res.status(400).json({
+        success: false,
+        message: 'Unsupported file format. Please upload CSV or Excel file.'
+      });
+    }
+
+    // Map and save leads
+    const leadData = leads.map(l => ({
+      name: l.Name || l.name || '',
+      email: l.Email || l.email || '',
+      phone: l.Phone || l.phone || l.PhoneNumber || l.mobile || '',
+      organization: l.Organization || l.organization || l.Company || '',
+      address: l.Address || l.address || '',
+      pancard: l.Pancard || l.pancard || '',
+      createdBy: req.user.id,
+      status: 'new'
+    })).filter(l => l.name && l.phone); // Basic validation
+
+    if (leadData.length === 0) {
+      fs.unlinkSync(filePath);
+      return res.status(400).json({
+        success: false,
+        message: 'No valid leads found in the file'
+      });
+    }
+
+    await Lead.insertMany(leadData);
+
+    // Clean up file
+    fs.unlinkSync(filePath);
+
     res.json({
       success: true,
-      message: 'Import functionality to be implemented'
+      count: leadData.length,
+      message: `${leadData.length} leads imported successfully`
     });
   } catch (error) {
+    if (req.file) fs.unlinkSync(req.file.path);
     res.status(500).json({
       success: false,
       message: error.message
@@ -227,11 +289,42 @@ exports.importLeads = async (req, res) => {
 // @access  Private/Admin/Manager
 exports.exportLeads = async (req, res) => {
   try {
-    // Placeholder for export functionality
-    res.json({
-      success: true,
-      message: 'Export functionality to be implemented'
+    let query = {};
+    if (req.user.role === 'staff') {
+      query.assignedTo = req.user.id;
+    }
+
+    const leads = await Lead.find(query).lean();
+
+    if (leads.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'No leads found to export'
+      });
+    }
+
+    // Convert to CSV
+    const header = ['Name', 'Email', 'Phone', 'Organization', 'Address', 'Pancard', 'Status', 'Staff Remarks'];
+    const rows = leads.map(l => [
+      l.name,
+      l.email || '',
+      l.phone,
+      l.organization || '',
+      l.address || '',
+      l.pancard || '',
+      l.status,
+      l.staffRemarks || ''
+    ]);
+
+    let csvContent = header.join(',') + '\n';
+    rows.forEach(row => {
+      csvContent += row.map(cell => `"${cell.toString().replace(/"/g, '""')}"`).join(',') + '\n';
     });
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename=leads_export.csv');
+    res.status(200).send(csvContent);
+
   } catch (error) {
     res.status(500).json({
       success: false,
