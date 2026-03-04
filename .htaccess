@@ -1,0 +1,13 @@
+PassengerEnabled On
+PassengerAppType node
+PassengerAppRoot /home/globalin/be.gis.globalinfosoft.in
+PassengerStartupFile server.js
+PassengerNodejs /usr/bin/node
+
+# Redirect all requests to the Node.js app
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule ^(.*)$ server.js [L]
+</IfModule>
