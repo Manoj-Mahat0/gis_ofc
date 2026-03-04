@@ -1,16 +1,21 @@
 const express = require('express');
 const router = express.Router();
 const { protect } = require('../middleware/auth');
+const {
+  getCallLogs,
+  logCall,
+  updateCallLog,
+  deleteCallLog
+} = require('../controllers/callController');
 
-// Placeholder for call routes
 router.use(protect);
 
-router.get('/', (req, res) => {
-  res.json({ success: true, data: [] });
-});
+router.route('/')
+  .get(getCallLogs)
+  .post(logCall);
 
-router.post('/', (req, res) => {
-  res.json({ success: true, message: 'Call logged' });
-});
+router.route('/:id')
+  .put(updateCallLog)
+  .delete(deleteCallLog);
 
 module.exports = router;
