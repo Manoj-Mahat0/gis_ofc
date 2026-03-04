@@ -62,6 +62,23 @@ app.use('/api/attendance', require('./routes/attendanceRoutes'));
 app.use('/api/location', require('./routes/locationRoutes'));
 app.use('/api/reports', require('./routes/reportRoutes'));
 
+// Root route
+app.get('/', (req, res) => {
+  res.json({ 
+    message: 'Telecaller Backend API',
+    status: 'running',
+    endpoints: {
+      health: '/health',
+      auth: '/api/auth',
+      leads: '/api/leads',
+      calls: '/api/calls',
+      attendance: '/api/attendance',
+      location: '/api/location',
+      reports: '/api/reports'
+    }
+  });
+});
+
 // Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'OK', message: 'Server is running' });
