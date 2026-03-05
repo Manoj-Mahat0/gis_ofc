@@ -1,16 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const { protect } = require('../middleware/auth');
+const { protect, authorize } = require('../middleware/auth');
+const { updateLocation, getAllStaffLocations } = require('../controllers/locationController');
 
-// Placeholder for location routes
 router.use(protect);
 
-router.get('/', (req, res) => {
-  res.json({ success: true, data: [] });
-});
-
-router.post('/', (req, res) => {
-  res.json({ success: true, message: 'Location logged' });
-});
+router.route('/')
+  .get(authorize('admin'), getAllStaffLocations)
+  .post(updateLocation);
 
 module.exports = router;

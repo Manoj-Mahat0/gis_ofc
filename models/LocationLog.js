@@ -14,6 +14,11 @@ const locationLogSchema = new mongoose.Schema({
     type: Number,
     required: true
   },
+  type: {
+    type: String,
+    enum: ['check_in', 'check_out', 'periodic', 'call', 'other'],
+    default: 'periodic'
+  },
   accuracy: {
     type: Number,
     default: 0
