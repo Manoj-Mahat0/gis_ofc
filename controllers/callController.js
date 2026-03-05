@@ -1,5 +1,7 @@
-const CallLog = require('../models/CallLog');
-const Lead = require('../models/Lead');
+const mongoose = require('mongoose');
+const User = mongoose.models.User || require('../models/User');
+const Lead = mongoose.models.Lead || require('../models/Lead');
+const CallLog = mongoose.models.CallLog || require('../models/CallLog');
 
 // @desc    Get all call logs for staff
 // @route   GET /api/calls
@@ -7,9 +9,9 @@ const Lead = require('../models/Lead');
 exports.getCallLogs = async (req, res) => {
   try {
     console.log('Getting call logs for user:', req.user.id, 'role:', req.user.role);
-    
-    const query = req.user.role === 'admin' 
-      ? {} 
+
+    const query = req.user.role === 'admin'
+      ? {}
       : { staffId: req.user.id };
 
     const callLogs = await CallLog.find(query)
@@ -142,5 +144,65 @@ exports.deleteCallLog = async (req, res) => {
       success: false,
       message: error.message
     });
+  }
+};
+
+// @desc    Sync multiple call logs from mobile device
+// @route   POST /api/calls/sync
+// @access  Private
+exports.syncCallLogs = async (req, res) => {
+  try {
+    const { logs } = req.body;
+
+    if (!logs || !Array.isArray(logs)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide an array of call logs'
+      });
+    }
+
+    let syncedCount = 0;
+
+    for (const log of logs) {
+      try {
+        // Normalize phone number (last 10 digits)
+        const normalizedPhone = log.phone.replace(/[\s\-\+\(\)]/g, '').slice(-10);
+
+        // Find lead (optional)
+        const lead = await Lead.findOne({
+          phone: { $regex: normalizedPhone + '$' }
+        });
+
+        const existingLog = await CallLog.findOne({
+          staffId: req.user.id,
+          startTime: new Date(log.startTime)
+        });
+
+        if (!existingLog) {
+          await CallLog.create({
+            leadId: lead ? lead._id : null,
+            staffId: req.user.id,
+            startTime: new Date(log.startTime),
+            endTime: new Date(new Date(log.startTime).getTime() + (log.duration * 1000)),
+            duration: log.duration,
+            remarks: lead
+              ? `Auto-synced: ${lead.name} (${log.type})`
+              : `Auto-synced: Unknown ${log.phone} (${log.type})`,
+            status: 'completed'
+          });
+          syncedCount++;
+        }
+      } catch (err) {
+        console.error('Skip log fail:', err.message);
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Synced ${syncedCount} logs`,
+      syncedCount
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
   }
 };

@@ -4,7 +4,7 @@ const callLogSchema = new mongoose.Schema({
   leadId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Lead',
-    required: true
+    required: false
   },
   staffId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -38,7 +38,7 @@ const callLogSchema = new mongoose.Schema({
 });
 
 // Calculate duration before saving
-callLogSchema.pre('save', function(next) {
+callLogSchema.pre('save', function (next) {
   if (this.endTime && this.startTime) {
     this.duration = Math.floor((this.endTime - this.startTime) / 1000);
   }
