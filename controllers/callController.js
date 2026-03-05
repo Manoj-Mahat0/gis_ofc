@@ -1,13 +1,14 @@
-const CallLog = require('../models/CallLog');
-const Lead = require('../models/Lead');
+const mongoose = require('mongoose');
+const CallLog = mongoose.models.CallLog || require('../models/CallLog');
+const Lead = mongoose.models.Lead || require('../models/Lead');
 
 // @desc    Get all call logs for staff
 // @route   GET /api/calls
 // @access  Private
 exports.getCallLogs = async (req, res) => {
   try {
-    const query = req.user.role === 'admin' 
-      ? {} 
+    const query = req.user.role === 'admin'
+      ? {}
       : { staffId: req.user.id };
 
     const callLogs = await CallLog.find(query)
@@ -131,6 +132,72 @@ exports.deleteCallLog = async (req, res) => {
     res.json({
       success: true,
       message: 'Call log deleted'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// @desc    Sync multiple call logs from mobile device
+// @route   POST /api/calls/sync
+// @access  Private
+exports.syncCallLogs = async (req, res) => {
+  try {
+    const { logs } = req.body; // Array of { phone, startTime, duration, type }
+
+    if (!logs || !Array.isArray(logs)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide an array of call logs'
+      });
+    }
+
+    let syncedCount = 0;
+    const errors = [];
+
+    for (const log of logs) {
+      try {
+        // Normalize phone number for matching (remove spaces, dashes, +91)
+        const normalizedPhone = log.phone.replace(/[\s\-\+\(\)]/g, '').slice(-10);
+
+        // Find lead matching the last 10 digits
+        const lead = await Lead.findOne({
+          phone: { $regex: normalizedPhone + '$' }
+        });
+
+        if (lead) {
+          // Check if this specific call (same lead, same start time) already exists
+          const existingLog = await CallLog.findOne({
+            leadId: lead._id,
+            startTime: new Date(log.startTime)
+          });
+
+          if (!existingLog) {
+            await CallLog.create({
+              leadId: lead._id,
+              staffId: req.user.id,
+              startTime: new Date(log.startTime),
+              endTime: new Date(new Date(log.startTime).getTime() + (log.duration * 1000)),
+              duration: log.duration,
+              remarks: `Auto-synced from phone (${log.type})`,
+              status: 'completed'
+            });
+            syncedCount++;
+          }
+        }
+      } catch (err) {
+        errors.push({ phone: log.phone, error: err.message });
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Successfully synced ${syncedCount} call logs`,
+      syncedCount,
+      errors: errors.length > 0 ? errors : undefined
     });
   } catch (error) {
     res.status(500).json({

@@ -5,10 +5,13 @@ const {
   getCallLogs,
   logCall,
   updateCallLog,
-  deleteCallLog
+  deleteCallLog,
+  syncCallLogs
 } = require('../controllers/callController');
 
 router.use(protect);
+
+router.post('/sync', syncCallLogs);
 
 router.route('/')
   .get(getCallLogs)
