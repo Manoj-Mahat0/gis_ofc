@@ -206,6 +206,8 @@ exports.assignLead = async (req, res) => {
   }
 };
 
+const { Readable } = require('stream');
+
 // @desc    Import leads from CSV/Excel
 // @route   POST /api/leads/import
 // @access  Private/Admin/Manager
@@ -218,29 +220,31 @@ exports.importLeads = async (req, res) => {
       });
     }
 
-    const filePath = req.file.path;
     const fileName = req.file.originalname;
     let leads = [];
 
     if (fileName.endsWith('.csv')) {
-      // Parse CSV
+      // Parse CSV from buffer
       const results = [];
       await new Promise((resolve, reject) => {
-        fs.createReadStream(filePath)
-          .pipe(csv())
+        const readable = new Readable();
+        readable._read = () => { };
+        readable.push(req.file.buffer);
+        readable.push(null);
+
+        readable.pipe(csv())
           .on('data', (data) => results.push(data))
           .on('end', () => resolve())
           .on('error', (err) => reject(err));
       });
       leads = results;
     } else if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
-      // Parse Excel
-      const workbook = xlsx.readFile(filePath);
+      // Parse Excel from buffer
+      const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
       const sheetName = workbook.SheetNames[0];
       const sheet = workbook.Sheets[sheetName];
       leads = xlsx.utils.sheet_to_json(sheet);
     } else {
-      fs.unlinkSync(filePath);
       return res.status(400).json({
         success: false,
         message: 'Unsupported file format. Please upload CSV or Excel file.'
@@ -260,7 +264,6 @@ exports.importLeads = async (req, res) => {
     })).filter(l => l.name && l.phone); // Basic validation
 
     if (leadData.length === 0) {
-      fs.unlinkSync(filePath);
       return res.status(400).json({
         success: false,
         message: 'No valid leads found in the file'
@@ -269,16 +272,12 @@ exports.importLeads = async (req, res) => {
 
     await Lead.insertMany(leadData);
 
-    // Clean up file
-    fs.unlinkSync(filePath);
-
     res.json({
       success: true,
       count: leadData.length,
       message: `${leadData.length} leads imported successfully`
     });
   } catch (error) {
-    if (req.file) fs.unlinkSync(req.file.path);
     res.status(500).json({
       success: false,
       message: error.message
