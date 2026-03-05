@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
-const CallLog = mongoose.models.CallLog || require('../models/CallLog');
+const User = mongoose.models.User || require('../models/User');
 const Lead = mongoose.models.Lead || require('../models/Lead');
+const CallLog = mongoose.models.CallLog || require('../models/CallLog');
 
 // @desc    Get all call logs for staff
 // @route   GET /api/calls

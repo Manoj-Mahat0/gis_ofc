@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
-const User = require('../models/User');
+const mongoose = require('mongoose');
+const User = mongoose.models.User || require('../models/User');
 
 // Generate JWT Token
 const generateToken = (id) => {

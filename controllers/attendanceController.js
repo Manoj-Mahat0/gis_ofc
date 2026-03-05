@@ -1,5 +1,7 @@
-const Attendance = require('../models/Attendance');
-const LocationLog = require('../models/LocationLog');
+const mongoose = require('mongoose');
+const Attendance = mongoose.models.Attendance || require('../models/Attendance');
+const LocationLog = mongoose.models.LocationLog || require('../models/LocationLog');
+const User = mongoose.models.User || require('../models/User');
 
 // @desc    Check in
 // @route   POST /api/attendance/checkin

@@ -1,4 +1,6 @@
-const Lead = require('../models/Lead');
+const mongoose = require('mongoose');
+const Lead = mongoose.models.Lead || require('../models/Lead');
+const User = mongoose.models.User || require('../models/User');
 const csv = require('csv-parser');
 const xlsx = require('xlsx');
 const fs = require('fs');
